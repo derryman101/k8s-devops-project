@@ -1,0 +1,45 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Update packages
+      command: yum update -y
+
+    - name: Install Docker
+      command: yum install -y docker
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+
+    - name: Enable Docker
+      service:
+        name: docker
+        enabled: yes
+
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Add Kubernetes repo
+      copy:
+        dest: /etc/yum.repos.d/kubernetes.repo
+        content: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
+
+    - name: Install Kubernetes components
+      command: yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+
+    - name: Enable kubelet
+      service:
+        name: kubelet
+        enabled: yes
+        state: started
