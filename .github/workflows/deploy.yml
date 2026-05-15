@@ -5,11 +5,13 @@ on:
     branches: [ main ]
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Login Docker Hub
         uses: docker/login-action@v3
@@ -26,11 +28,24 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: self-hosted   # 👈 IMPORTANT CHANGE
+    runs-on: self-hosted
 
     steps:
+      # ✅ CRITICAL FIX: bring repo files to runner
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Optional but recommended
+      - name: Verify kubectl context
+        run: kubectl get nodes
+
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f deployment.yml
           kubectl apply -f service.yml
-          kubectl rollout restart deployment nginx-deployment
+
+      - name: Restart rollout
+        run: kubectl rollout restart deployment nginx-deployment
+
+      - name: Verify rollout status
+        run: kubectl rollout status deployment nginx-deployment --timeout=120s
