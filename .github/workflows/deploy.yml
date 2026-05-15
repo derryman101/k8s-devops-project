@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,9 +25,12 @@ jobs:
       - name: Push Docker image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/myapp:latest
 
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
       - name: Deploy to Kubernetes
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
           kubectl apply --validate=false -f deployment.yml
           kubectl apply --validate=false -f service.yml
