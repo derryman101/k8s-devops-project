@@ -44,9 +44,9 @@ jobs:
     # Setup kubectl and Deploy
     # --------------------------------
     - name: Deploy to Kubernetes
-      run: |
-        echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
-        export KUBECONFIG=$PWD/kubeconfig
-        kubectl apply -f deployment.yml
-        kubectl apply -f service.yml
-        kubectl rollout restart deployment nginx-deployment
+  run: |
+    echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
+    export KUBECONFIG=$PWD/kubeconfig
+    kubectl apply --validate=false -f deployment.yml
+    kubectl apply --validate=false -f service.yml
+    kubectl rollout restart deployment nginx-deployment
