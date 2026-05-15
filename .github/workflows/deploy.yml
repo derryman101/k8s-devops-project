@@ -27,26 +27,13 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }}
 
-
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-      - name: Add host to known hosts
-        run: |
-          ssh-keyscan -H ${{ secrets.MASTER_IP }} >> ~/.ssh/known_hosts
+      - uses: actions/checkout@v3
 
       - name: Deploy to Kubernetes
         run: |
-          ssh -i ~/.ssh/id_rsa ec2-user@${{ secrets.MASTER_IP }} "
-            kubectl set image deployment/nginx-deployment \
-            nginx=${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }} &&
-            kubectl rollout status deployment/nginx-deployment --timeout=120s
-          "
+          kubectl apply -f deployment.yml
+          kubectl rollout status deployment nginx-deployment --timeout=120s
