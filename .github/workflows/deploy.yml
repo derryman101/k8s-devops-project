@@ -19,26 +19,34 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build image
+      - name: Build Docker image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }} .
 
-      - name: Push image
+      - name: Push Docker image
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }}
 
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest   # ✅ FIX: removes hanging risk
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH to Kubernetes master
+      - name: Setup SSH key
         run: |
-          echo "${{ secrets.SSH_KEY }}" > key.pem
-          chmod 600 key.pem
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-          ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@${{ secrets.MASTER_IP }} "
-            kubectl set image deployment/nginx-deployment nginx=${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }} &&
+      - name: Add host to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.MASTER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Kubernetes
+        run: |
+          ssh -i ~/.ssh/id_rsa ec2-user@${{ secrets.MASTER_IP }} "
+            kubectl set image deployment/nginx-deployment \
+            nginx=${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }} &&
             kubectl rollout status deployment/nginx-deployment --timeout=120s
           "
