@@ -20,32 +20,25 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/myapp:latest .
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }} .
 
       - name: Push image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/myapp:latest
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }}
 
 
   deploy:
     needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest   # ✅ FIX: removes hanging risk
 
     steps:
-      # ✅ CRITICAL FIX: bring repo files to runner
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # Optional but recommended
-      - name: Verify kubectl context
-        run: kubectl get nodes
-
-      - name: Deploy to Kubernetes
+      - name: Deploy via SSH to Kubernetes master
         run: |
-          kubectl apply -f deployment.yml
-          kubectl apply -f service.yml
+          echo "${{ secrets.SSH_KEY }}" > key.pem
+          chmod 600 key.pem
 
-      - name: Restart rollout
-        run: kubectl rollout restart deployment nginx-deployment
-
-      - name: Verify rollout status
-        run: kubectl rollout status deployment nginx-deployment --timeout=120s
+          ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@${{ secrets.MASTER_IP }} "
+            kubectl set image deployment/nginx-deployment nginx=${{ secrets.DOCKER_USERNAME }}/myapp:${{ github.sha }} &&
+            kubectl rollout status deployment/nginx-deployment --timeout=120s
+          "
